@@ -3,14 +3,10 @@ import os
 import argparse
 from PIL import Image 
 
-
 def encode_lsb(num, iterator):
     # Make the last bit in the given number equal to the next bit in our message
-    try:
-        encoded_num = (num & 0xFE) | int(next(iterator))
-        return encoded_num 
-    except StopIteration:
-        return num
+    encoded_num = (num & 0xFE) | int(next(iterator))
+    return encoded_num 
 
 def encode_image(path, message, output_path):
     with Image.open(path) as image:
@@ -20,14 +16,20 @@ def encode_image(path, message, output_path):
 
         pixels = image.getdata()
         encoded_pixels = []
+        pixel_count = 0
 
         # encode each channel of the pixel
         for pixel in pixels:
-            encoded_channel = (
-                encode_lsb(pixel[0], iterator),
-                encode_lsb(pixel[1], iterator),
-                encode_lsb(pixel[2], iterator)
-            )
+            pixel_count += 1
+            
+            if pixel_count <= len(binary_message) / 3:
+                encoded_channel = (
+                    encode_lsb(pixel[0], iterator),
+                    encode_lsb(pixel[1], iterator),
+                    encode_lsb(pixel[2], iterator)
+                )
+            else:
+                encoded_channel = pixel
 
             encoded_pixels.append(encoded_channel)
 
@@ -63,12 +65,12 @@ def decode_image(path):
 
         decoded_message = ""
         for i in range(0, len(binary_message), 8):
+            # get each byte and convert it into a char
             byte = binary_message[i:i+8]
             decoded_message += chr(int(byte, 2))
 
         return decoded_message
                 
-
 def is_valid_image_path(path):
     # Check if the file exists
     if not os.path.exists(path):
@@ -81,12 +83,6 @@ def is_valid_image_path(path):
         return True
     except (IOError, SyntaxError):
         return False
-
-def help_info():
-    print("Usage:")
-    print("python3 stego.py encode [message] [image_path]  ")
-    print("python3 stego.py decode [message length] [image_path]  ")
-    exit()
 
 def main():
     parser = argparse.ArgumentParser(description="LSB Steganography Tool")
