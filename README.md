@@ -18,13 +18,13 @@ pip install -r requirements.txt
 
 ## Usage
 #### Encoding:
-    ```bash
-    python3 stego.py encode <message> <image_path> <output_path>
-    ```
+```bash
+python3 stego.py encode <message> <image_path> <output_path>
+```
 #### Decoding:
-    ```bash
-    python3 stego.py decode <image_path>
-    ```
+```bash
+python3 stego.py decode <image_path>
+```
 
 #### Arguments:
 - `<message>`: The text message to encode.
