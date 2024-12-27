@@ -1,5 +1,5 @@
 # LSB Steganography Tool
-* A tool built with python and [Pillow](https://pillow.readthedocs.io/en/stable/) that uses the least significant bits of an image to encode a message*
+A tool built with python and [Pillow](https://pillow.readthedocs.io/en/stable/) that uses the least significant bits of an image to encode a message
 
 ## Features
 - **Encode a message**: encode a message into an image by modifying the least significant bits of the image's pixels.
@@ -11,16 +11,17 @@
 
 ## Installation
 Install the required dependencies (just pillow):
-    ```bash
-    pip install -r requirements.txt
-    ```
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Usage
-- Encoding
+#### Encoding:
     ```bash
     python3 stego.py encode <message> <image_path> <output_path>
     ```
-- Decoding
+#### Decoding:
     ```bash
     python3 stego.py decode <image_path>
     ```
@@ -32,13 +33,14 @@ Install the required dependencies (just pillow):
 
 #### Example:
 ```bash
-python stego.py encode "Hello, World!" input.png output.png
+python3 stego.py encode "Hello, World!" input.png output.png
 ```
 
 ## Notes
 - Doesn't work with jpeg images due to lossy compression
 - Made to work with png images, but can probably work for others
-- The image needs enough pixels to store the message. Since a pixel can store 3 bits of a message; (len(message) * 8) / 3 = #pixels needed
+- The image needs enough pixels to store the message. Since a pixel can store 3 bits of a message;
+(len(message) * 8) / 3 = #pixels needed
 - The longer the message, the easier it will be to detect encoding
 
 ## Disclaimer
