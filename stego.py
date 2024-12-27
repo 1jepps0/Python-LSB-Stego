@@ -1,23 +1,73 @@
+import sys
+import os
+import argparse
 from PIL import Image 
 
-valid_modes = ["encode", "decode"]
-args = sys.argv
-mode = args[1].lower()
-image_path = args[2]
 
-def help_info():
-    print("Invalid Usage")
-    print("Usage: python3 stego.py [encode/decode] [image path]")
-    exit()
+def encode_lsb(num, iterator):
+    # Make the last bit in the given number equal to the next bit in our message
+    try:
+        encoded_num = (num & 0xFE) | int(next(iterator))
+        return encoded_num 
+    except StopIteration:
+        return num
 
-# check for valid usage
-if len(args) > 3:
-    help_info()
+def encode_image(path, message, output_path):
+    with Image.open(path) as image:
+        # convert the message into binary with null character, so we know where it ends 
+        binary_message = ''.join(format(ord(c), '08b') for c in message) + '00000000' 
+        iterator = iter(binary_message)
 
-if mode not in valid_modes:
-    help_info()
+        pixels = image.getdata()
+        encoded_pixels = []
 
-# check if given valid image
+        # encode each channel of the pixel
+        for pixel in pixels:
+            encoded_channel = (
+                encode_lsb(pixel[0], iterator),
+                encode_lsb(pixel[1], iterator),
+                encode_lsb(pixel[2], iterator)
+            )
+
+            encoded_pixels.append(encoded_channel)
+
+        # add the encoded pixels to a new image
+        encoded_image = Image.new(image.mode, image.size)
+        encoded_image.putdata(encoded_pixels)
+        encoded_image.save(output_path)
+        print(f"Image saved to {output_path}")
+
+def at_end_of_message(message):
+    # check for null character (end point)
+    return message[-8:] == ('0' * 8)
+
+def decode_image(path):
+    with Image.open(path) as image:
+        pixels = image.getdata()
+        
+        # decode the LSB from each channel of each pixel
+        binary_message = ""
+        break_out = False
+
+        for pixel in pixels:
+            for channel in pixel:
+                # capture last bit
+                binary_message += str(channel & 1)
+
+                if at_end_of_message(binary_message): 
+                    break_out = True
+                    break
+                
+            if break_out:
+                break
+
+        decoded_message = ""
+        for i in range(0, len(binary_message), 8):
+            byte = binary_message[i:i+8]
+            decoded_message += chr(int(byte, 2))
+
+        return decoded_message
+                
 
 def is_valid_image_path(path):
     # Check if the file exists
@@ -32,75 +82,35 @@ def is_valid_image_path(path):
     except (IOError, SyntaxError):
         return False
 
-if not is_valid_image_path(image_path):
-    print("Invalid Image Path")
-    help_info()
+def help_info():
+    print("Usage:")
+    print("python3 stego.py encode [message] [image_path]  ")
+    print("python3 stego.py decode [message length] [image_path]  ")
+    exit()
 
-i = 0
+def main():
+    parser = argparse.ArgumentParser(description="LSB Steganography Tool")
+    subparsers = parser.add_subparsers(dest="mode", required=True)
 
-def encode_lsb(num, bin):
-    global i
+    encode_parser = subparsers.add_parser("encode", help="Encode a message into an image")
+    encode_parser.add_argument("message", help="Message to encode")
+    encode_parser.add_argument("image_path", help="Path to the image file")
+    encode_parser.add_argument("output_path", help="Path to save the encoded image")
 
-    if i < len(bin): 
-        # make the least signifigant bit the current bit in the message
-        new_number = (num & 0xFE) | int(bin[i])
+    decode_parser = subparsers.add_parser("decode", help="Decode a message from an image")
+    decode_parser.add_argument("image_path", help="Path to the encoded image")
 
-        i += 1
-        return new_number
+    args = parser.parse_args()
 
-    return num
+    if not is_valid_image_path(args.image_path):
+        print("Invalid image file path or format.")
+        sys.exit(1)
 
-def encode_image(path, message):
+    if args.mode == "encode":
+        encode_image(args.image_path, args.message, args.output_path)
+    elif args.mode == "decode":
+        message = decode_image(args.image_path)
+        print("Decoded Message:\n" + message)
 
-
-    with Image.open(path) as image:
-        pixels = image.load()
-        width, height = image.size
-
-        encoded_image = Image.new("RGB", (width, height), color="white")
-
-        bin = ''.join(format(ord(i), '08b') for i in message)
-        i = 0 # reset iterator
-
-
-        for y in range(height):
-            for x in range(width):
-                r, g, b = pixels[x, y]
-                r, g, b = (encode_lsb(r, bin), encode_lsb(g, bin), encode_lsb(b, bin))
-
-                encoded_image.putpixel((x, y), (r, g, b))
-
-        encoded_image.save("encoded_" + path)
-
-
-
-def decode_lsb(num):
-    return str(num & 1)
-
-
-def decode_image(path, message_length):
-
-    with Image.open(path) as image:
-        pixels = image.load()
-        width, height = image.size
-
-        binary_message = ""
-
-        for y in range(height):
-            for x in range(width):
-                r, g, b = pixels[x, y]
-                binary_message += decode_lsb(r) + decode_lsb(g) + decode_lsb(b)
-
-        decoded_message = ""
-        for i in range(0, message_length * 8, 8):
-            byte = binary_message[i:i+8]
-            decoded_message += chr(int(byte, 2))
-
-        print(decoded_message)
-                
-
-secret_message = "I like hotdogs"
-
-encode_image(file_path, secret_message)
-decode_image("encoded_" + file_path, len(secret_message))
-
+if __name__ == "__main__":
+    main()
